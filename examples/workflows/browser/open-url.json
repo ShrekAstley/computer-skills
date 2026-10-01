@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "id": "browser/open-url",
+  "name": "Open a URL in a browser window",
+  "app": { "id": "browser", "name": "Web browser" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "Opens a URL in the chosen browser (default: firefox; or chrome, chromium, edge) and verifies a browser window shows up. To use the system default browser instead, call app action \"open\" with the URL.",
+  "tags": ["browser", "web", "url", "open"],
+  "triggers": ["open url", "open website", "go to web page", "browse to"],
+  "parameters": [
+    { "name": "url", "type": "string", "required": true },
+    { "name": "browser", "type": "string", "default": "firefox" },
+    { "name": "title_hint", "type": "string", "default": "Mozilla Firefox|Chrome|Chromium|Edge", "description": "Regex expected in the window title once loaded." }
+  ],
+  "steps": [
+    {
+      "id": "launch",
+      "title": "Launch the browser with the URL",
+      "action": { "tool": "app", "args": { "action": "launch", "name": "{{browser}}", "params": { "url": "{{url}}", "newWindow": true }, "if_running": "new", "timeout_ms": 45000 } },
+      "expect": [{ "type": "window_exists", "title_regex": "{{title_hint}}" }],
+      "timeout_ms": 30000,
+      "retries": 1
+    }
+  ],
+  "expected_results": [],
+  "failure_modes": [{ "symptom": "Browser opened but page shows an error", "recovery": "screen_text to read the error (offline, DNS); verify http_ok on the URL." }],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

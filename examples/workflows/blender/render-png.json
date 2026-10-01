@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "id": "blender/render-png",
+  "name": "Render a Blender project to PNG",
+  "app": {
+    "id": "blender",
+    "name": "Blender",
+    "version": ">=3.0",
+    "tested_version": "4.0.2"
+  },
+  "platforms": [
+    "linux",
+    "windows",
+    "macos"
+  ],
+  "description": "Opens a .blend file headless, renders the active camera to a PNG with the chosen engine and resolution, and verifies the image exists.",
+  "tags": [
+    "render",
+    "png",
+    "image",
+    "export"
+  ],
+  "triggers": [
+    "export the project as png",
+    "render to png",
+    "render image",
+    "export png from blender",
+    "save render"
+  ],
+  "parameters": [
+    {
+      "name": "blend_file",
+      "type": "path",
+      "required": true,
+      "description": "The .blend project to render."
+    },
+    {
+      "name": "output_path",
+      "type": "path",
+      "required": true,
+      "description": "PNG file to write."
+    },
+    {
+      "name": "engine",
+      "type": "string",
+      "default": "AUTO",
+      "description": "AUTO (Cycles on CPU — works headless everywhere), CYCLES, BLENDER_EEVEE, BLENDER_EEVEE_NEXT (4.2+) or BLENDER_WORKBENCH. EEVEE/Workbench need an OpenGL-capable display."
+    },
+    {
+      "name": "resolution_percentage",
+      "type": "integer",
+      "default": 50
+    },
+    {
+      "name": "samples",
+      "type": "integer",
+      "default": 16
+    }
+  ],
+  "preconditions": [
+    {
+      "type": "file_exists",
+      "path": "{{blend_file}}"
+    }
+  ],
+  "steps": [
+    {
+      "id": "render",
+      "title": "Render the active camera to PNG",
+      "action": {
+        "tool": "app_script",
+        "args": {
+          "app": "blender",
+          "file": "{{blend_file}}",
+          "background": true,
+          "timeout_ms": 1800000,
+          "code": "import bpy, os\nout = r\"{{output_path}}\"\nengine = \"{{engine}}\"\nscene = bpy.context.scene\nif scene.camera is None:\n    cams = [o for o in scene.objects if o.type == 'CAMERA']\n    if not cams:\n        raise RuntimeError('The scene has no camera')\n    scene.camera = cams[0]\ntry:\n    import addon_utils\n    addon_utils.enable('cycles', default_set=True)\nexcept Exception:\n    pass\n\ndef use(e):\n    try:\n        scene.render.engine = e\n        return True\n    except TypeError:\n        return False\n\n# AUTO prefers Cycles on the CPU: it is the only engine that renders without a GPU/OpenGL context.\norder = ['CYCLES', 'BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'] if engine == 'AUTO' else [engine]\nchosen = next((e for e in order if use(e)), None)\nif chosen is None:\n    raise RuntimeError('Render engine %s is not available in this Blender build' % engine)\nif chosen == 'CYCLES':\n    scene.cycles.samples = int(\"{{samples}}\")\n    scene.cycles.device = 'CPU'\n    # Distribution builds may lack OpenImageDenoise; denoising is optional for a still.\n    scene.cycles.use_denoising = False\nscene.render.resolution_percentage = int(\"{{resolution_percentage}}\")\nscene.render.image_settings.file_format = 'PNG'\nscene.render.filepath = out\nos.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)\nbpy.ops.render.render(write_still=True)\nprint('RENDER_OK engine=%s file=%s' % (chosen, out))\n"
+        }
+      },
+      "expect": [
+        {
+          "type": "file_exists",
+          "path": "{{output_path}}",
+          "min_bytes": 1000,
+          "modified_after_start": true
+        }
+      ],
+      "timeout_ms": 10000,
+      "on_failure": "abort",
+      "hints": {
+        "notes": "Background rendering with EEVEE/Workbench needs OpenGL; AUTO uses Cycles on the CPU, which always works but is slower — keep samples and resolution low for previews."
+      }
+    }
+  ],
+  "expected_results": [
+    {
+      "type": "file_exists",
+      "path": "{{output_path}}",
+      "min_bytes": 1000
+    }
+  ],
+  "failure_modes": [
+    {
+      "symptom": "Unable to open a display / EEVEE fails in background mode",
+      "recovery": "Re-run with engine CYCLES (CPU) or BLENDER_WORKBENCH."
+    },
+    {
+      "symptom": "The scene has no camera",
+      "recovery": "Add a camera (bpy.ops.object.camera_add) and point it at the scene before rendering."
+    },
+    {
+      "symptom": "RuntimeError: Build without OpenImageDenoiser",
+      "recovery": "Set scene.cycles.use_denoising = False (already done by this workflow for Cycles) or use another engine."
+    }
+  ],
+  "notes": [
+    "GUI alternative: open the file, press F12, then Image > Save As in the render window (see blender/render-png-gui)."
+  ],
+  "stats": {
+    "runs": 0,
+    "successes": 0,
+    "failures": 0,
+    "last_success": null,
+    "last_failure": null,
+    "last_verified": null,
+    "last_failure_reason": null
+  },
+  "version": 1,
+  "history": [
+    {
+      "version": 1,
+      "date": "2026-10-01T00:00:00.000Z",
+      "change": "built-in example"
+    }
+  ],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

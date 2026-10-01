@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "godot/export-project",
+  "name": "Export a Godot project with an export preset (headless)",
+  "app": { "id": "godot", "name": "Godot Engine", "version": ">=4.0" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "Runs `godot --headless --path <project> --export-release <preset> <output>` and verifies the build exists. Requires export templates and a preset in export_presets.cfg.",
+  "tags": ["game", "export", "build"],
+  "triggers": ["export godot game", "build godot project"],
+  "parameters": [
+    { "name": "project", "type": "path", "required": true, "description": "Folder containing project.godot." },
+    { "name": "preset", "type": "string", "required": true, "description": "Export preset name, e.g. \"Linux\" or \"Windows Desktop\"." },
+    { "name": "output", "type": "path", "required": true }
+  ],
+  "preconditions": [{ "type": "file_exists", "path": "{{project}}/project.godot" }, { "type": "file_contains", "path": "{{project}}/export_presets.cfg", "text": "{{preset}}" }],
+  "steps": [
+    {
+      "id": "export",
+      "title": "Export with the preset",
+      "action": { "tool": "app_script", "args": { "app": "godot", "args": ["--headless", "--path", "{{project}}", "--export-release", "{{preset}}", "{{output}}"], "timeout_ms": 1800000 } },
+      "expect": [{ "type": "file_exists", "path": "{{output}}", "modified_after_start": true }]
+    }
+  ],
+  "expected_results": [{ "type": "file_exists", "path": "{{output}}" }],
+  "failure_modes": [{ "symptom": "No export template found", "recovery": "Export templates must be installed (Editor > Manage Export Templates) — downloading them needs the user's approval." }],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

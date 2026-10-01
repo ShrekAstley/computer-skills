@@ -1,0 +1,15 @@
+---
+description: Operating the computer (desktop apps, GUI, screen, keyboard/mouse, terminal processes) with the computer-skills MCP tools - inspect, plan, act, verify, recover, remember workflows.
+alwaysApply: false
+---
+
+# Computer Skills
+
+When a task involves operating applications or the OS beyond editing files, use the `computer-skills` MCP tools and the `computer-skills` skill:
+
+1. **Inspect first:** `workflow_search` (task + app) before operating any app; run `known` workflows with `workflow_run`; use `app_profile get` and `env_inspect` for context.
+2. **Most reliable mechanism first:** CLI (`terminal_run`) → app scripting (`app_script`) → menus/accessibility (`ui_menu`, `ui_action`, `ui_dialog`) → shortcuts → text-targeted clicks → coordinates.
+3. **Observe and verify:** screenshot/OCR/accessibility before and after actions; confirm outcomes with `verify` (window_exists, file_exists, text_visible…). Never assume.
+4. **Recover:** `diagnose`, adapt, never repeat a failed action unchanged; stop after two failed approaches on the same step.
+5. **Persist:** `workflow_save` new/improved procedures (verified only after success), `workflow_feedback` outcomes, `app_profile update` reusable facts.
+6. **Safety:** on `CONFIRMATION_REQUIRED` ask the user and retry with `confirm` only after explicit approval; on `POLICY_DENIED` or `KILL_SWITCH` stop. Focus the right window before typing. One agent at a time controls the screen.

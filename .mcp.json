@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "computer-skills": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/computer-skills.js", "serve"]
+    }
+  }
+}

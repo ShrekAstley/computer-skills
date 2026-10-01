@@ -1,0 +1,56 @@
+{
+  "name": "computer-skills",
+  "version": "1.0.0",
+  "description": "Structured computer control for AI coding agents: terminal, apps, screen/UI inspection, input, verification, safety policies and persistent workflow memory. MCP server + skill for Claude Code, OpenCode and Cursor.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ShrekAstley",
+  "homepage": "https://github.com/shrekastley/computer-skills",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shrekastley/computer-skills.git"
+  },
+  "bin": {
+    "computer-skills": "bin/computer-skills.js"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "agents",
+    "commands",
+    "adapters",
+    "examples",
+    ".claude-plugin",
+    ".mcp.json",
+    "install.sh",
+    "install.ps1"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "start": "node bin/computer-skills.js serve",
+    "doctor": "node bin/computer-skills.js doctor",
+    "test": "node scripts/test.js test/unit",
+    "test:integration": "node scripts/test.js test/integration",
+    "test:all": "node scripts/test.js test/unit test/integration",
+    "lint": "node scripts/check.js",
+    "validate:workflows": "node bin/computer-skills.js workflows validate examples/workflows"
+  },
+  "keywords": [
+    "mcp",
+    "claude-code",
+    "opencode",
+    "cursor",
+    "computer-use",
+    "automation",
+    "desktop-automation",
+    "agent",
+    "skills"
+  ]
+}
