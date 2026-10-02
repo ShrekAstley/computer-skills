@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "id": "generic/save-as",
+  "name": "Save the current document under a new path (any app with a native Save dialog)",
+  "app": { "id": "generic", "name": "Generic" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "Works in most desktop apps: focuses the app window, opens Save As with the standard shortcut, types the path into the native file dialog, confirms, and verifies the file exists. Stops for approval if a 'Replace existing file?' prompt appears.",
+  "tags": ["save", "save as", "file dialog", "export"],
+  "triggers": ["save as", "save the document", "save file to"],
+  "parameters": [
+    { "name": "window_title", "type": "string", "required": true, "description": "Regex matching the app window title." },
+    { "name": "path", "type": "path", "required": true, "description": "Absolute path to save to." }
+  ],
+  "preconditions": [{ "type": "window_exists", "title_regex": "{{window_title}}" }],
+  "steps": [
+    {
+      "id": "focus",
+      "title": "Focus the document window",
+      "action": { "tool": "window", "args": { "action": "focus", "title_regex": "{{window_title}}" } },
+      "expect": [{ "type": "window_focused", "title_regex": "{{window_title}}" }],
+      "retries": 1
+    },
+    {
+      "id": "open-dialog",
+      "title": "Open Save As (mod+shift+s)",
+      "action": { "tool": "input_keyboard", "args": { "action": "press", "keys": "mod+shift+s" } },
+      "expect": [{ "type": "window_exists", "title_regex": "save|export" }],
+      "timeout_ms": 8000,
+      "hints": { "shortcut": "mod+shift+s", "location": "File > Save As", "notes": "Some apps use F12 (Office) or only File > Save As in the menu; fall back to ui_menu [\"File\", \"Save As\"]." }
+    },
+    {
+      "id": "fill",
+      "title": "Enter the path and confirm",
+      "action": { "tool": "ui_dialog", "args": { "action": "fill_path", "path": "{{path}}", "mode": "save" } },
+      "expect": [{ "type": "file_exists", "path": "{{path}}", "modified_within_s": 120 }],
+      "timeout_ms": 10000
+    }
+  ],
+  "expected_results": [{ "type": "file_exists", "path": "{{path}}" }],
+  "failure_modes": [
+    { "symptom": "Dialog still open after fill_path", "recovery": "A 'Replace?' confirmation or format prompt is showing: ui_dialog read, then ask the user before replacing." },
+    { "symptom": "Shortcut opened nothing", "recovery": "Use the File menu: ui_menu [\"File\", \"Save As\"]." }
+  ],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

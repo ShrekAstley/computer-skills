@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "id": "chrome/page-to-pdf",
+  "name": "Save a web page as PDF (headless Chrome/Chromium)",
+  "app": { "id": "chrome", "name": "Google Chrome" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "Prints a URL to PDF with a headless browser — no window, no print dialog. Works with Chrome, Chromium or Edge (set the app parameter).",
+  "tags": ["browser", "pdf", "print", "web"],
+  "triggers": ["save page as pdf", "print web page to pdf", "convert url to pdf"],
+  "parameters": [
+    { "name": "url", "type": "string", "required": true },
+    { "name": "output", "type": "path", "required": true },
+    { "name": "browser", "type": "string", "default": "chrome", "description": "chrome, chromium or edge" }
+  ],
+  "steps": [
+    {
+      "id": "print",
+      "title": "Print the page to PDF",
+      "action": { "tool": "app_script", "args": { "app": "{{browser}}", "options": { "operation": "pdf", "url": "{{url}}", "output": "{{output}}" }, "timeout_ms": 120000 } },
+      "expect": [{ "type": "file_exists", "path": "{{output}}", "min_bytes": 500, "modified_after_start": true }]
+    }
+  ],
+  "expected_results": [{ "type": "file_exists", "path": "{{output}}", "min_bytes": 500 }],
+  "failure_modes": [{ "symptom": "executable not found", "recovery": "Try browser=chromium or edge, or app action find \"chrome\"." }],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "vscode/open-folder",
+  "name": "Open a folder in Visual Studio Code",
+  "app": { "id": "vscode", "name": "Visual Studio Code" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "Opens a folder (or file at a line) in a new VS Code window and verifies the window title shows the folder name.",
+  "tags": ["ide", "editor", "open", "project"],
+  "triggers": ["open folder in vscode", "open project in vs code", "open file in code"],
+  "parameters": [
+    { "name": "path", "type": "path", "required": true },
+    { "name": "folder_name", "type": "string", "required": true, "description": "Base name of the folder, used to recognise the window." }
+  ],
+  "preconditions": [{ "type": "file_exists", "path": "{{path}}" }],
+  "steps": [
+    {
+      "id": "launch",
+      "title": "Open the folder in a new window",
+      "action": { "tool": "app", "args": { "action": "launch", "name": "vscode", "params": { "path": "{{path}}", "newWindow": true }, "if_running": "new", "timeout_ms": 45000 } },
+      "expect": [{ "type": "window_exists", "title": "{{folder_name}}" }],
+      "timeout_ms": 30000
+    }
+  ],
+  "expected_results": [],
+  "failure_modes": [{ "symptom": "Restricted Mode / 'Do you trust the authors' prompt", "recovery": "This is a security decision: ask the user before pressing 'Yes, I trust the authors'." }],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

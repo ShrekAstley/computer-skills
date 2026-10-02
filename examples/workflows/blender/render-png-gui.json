@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "id": "blender/render-png-gui",
+  "name": "Render and save a PNG through the Blender GUI",
+  "app": { "id": "blender", "name": "Blender", "version": ">=3.0" },
+  "platforms": ["linux", "windows", "macos"],
+  "description": "GUI version of the render-to-PNG task: opens the project in the Blender window, renders with F12, saves via Image > Save As in the render window. Demonstrates hotkeys, OCR-based verification and a manual step for Blender's non-native file browser. Prefer blender/render-png (headless) unless the user wants to watch.",
+  "tags": ["render", "png", "gui"],
+  "triggers": ["render in blender gui", "render and save image in blender window"],
+  "parameters": [
+    { "name": "blend_file", "type": "path", "required": true },
+    { "name": "output_path", "type": "path", "required": true }
+  ],
+  "preconditions": [{ "type": "file_exists", "path": "{{blend_file}}" }],
+  "steps": [
+    {
+      "id": "open",
+      "title": "Open the project in Blender",
+      "action": { "tool": "app", "args": { "action": "launch", "name": "blender", "params": { "file": "{{blend_file}}" }, "if_running": "new", "timeout_ms": 60000 } },
+      "expect": [{ "type": "window_exists", "title_regex": "Blender" }],
+      "timeout_ms": 60000
+    },
+    {
+      "id": "focus",
+      "title": "Focus the Blender window",
+      "action": { "tool": "window", "args": { "action": "focus", "title_regex": "Blender" } },
+      "expect": [{ "type": "window_focused", "title_regex": "Blender" }]
+    },
+    {
+      "id": "render",
+      "title": "Render the image (F12)",
+      "action": { "tool": "input_keyboard", "args": { "action": "press", "keys": "f12", "title_regex": "Blender" } },
+      "expect": [{ "type": "window_exists", "title_regex": "Blender Render|Render" }],
+      "timeout_ms": 300000,
+      "hints": { "location": "Render menu > Render Image", "shortcut": "F12", "notes": "A separate 'Blender Render' window opens; wait until rendering finishes (the title or header shows the frame time)." }
+    },
+    {
+      "id": "save",
+      "title": "Save the render as PNG",
+      "manual": "In the render window open Image > Save As (shortcut shift+alt+s). Blender uses its own file browser, not a native dialog: double-click the file path field at the top, select all (mod+a), type {{output_path}}, press Enter, ensure the file format is PNG, then press Enter / click 'Save As Image'.",
+      "expect": [{ "type": "file_exists", "path": "{{output_path}}", "min_bytes": 1000 }],
+      "timeout_ms": 10000,
+      "hints": { "location": "Render window: Image > Save As", "shortcut": "shift+alt+s" }
+    }
+  ],
+  "expected_results": [{ "type": "file_exists", "path": "{{output_path}}", "min_bytes": 1000 }],
+  "failure_modes": [
+    { "symptom": "F12 does nothing", "recovery": "Hotkeys go to the area under the mouse: move the mouse over the 3D viewport (input_mouse move) and press F12 again, or use the Render menu (ui_menu ['Render', 'Render Image'] with method visual)." },
+    { "symptom": "No 'Save As' in the image menu", "recovery": "In older versions it is under Image > Save As Image; use F3 search and type 'save as'." }
+  ],
+  "notes": [],
+  "stats": { "runs": 0, "successes": 0, "failures": 0, "last_success": null, "last_failure": null, "last_verified": null, "last_failure_reason": null },
+  "version": 1,
+  "history": [{ "version": 1, "date": "2026-10-01T00:00:00.000Z", "change": "built-in example" }],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}

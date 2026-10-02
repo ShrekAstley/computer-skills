@@ -1,0 +1,28 @@
+{
+  "name": "computer-skills",
+  "owner": {
+    "name": "ShrekAstley"
+  },
+  "metadata": {
+    "description": "Computer Skills: let coding agents operate the computer — terminal, apps, screen, input — with verification, safety and learned workflows."
+  },
+  "allowCrossMarketplaceDependenciesOn": [
+    "expert-workflow"
+  ],
+  "plugins": [
+    {
+      "name": "computer-skills",
+      "source": "./",
+      "description": "MCP server (28 tools) + operator skill + subagents for structured, verifiable computer control with persistent workflow memory. Depends on expert-workflow from the shrekastley/expert-workflow marketplace.",
+      "version": "1.0.0",
+      "category": "productivity",
+      "keywords": [
+        "computer-use",
+        "automation",
+        "desktop",
+        "mcp",
+        "workflows"
+      ]
+    }
+  ]
+}

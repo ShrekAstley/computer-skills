@@ -1,0 +1,370 @@
+// computer-skills macOS bridge (JavaScript for Automation).
+// Usage: osascript -l JavaScript macos_helper.jxa <op> '<json args>'
+// Prints one JSON object: {"ok":true,...} or {"ok":false,"error":"...","message":"..."}
+ObjC.import('Cocoa');
+ObjC.import('stdlib');
+try { ObjC.import('CoreGraphics'); } catch (e) { ObjC.import('Quartz'); }
+
+function run(argv) {
+  var op = argv[0];
+  var args = {};
+  try { args = argv[1] ? JSON.parse(argv[1]) : {}; } catch (e) { return out({ ok: false, error: 'bad-args', message: String(e) }); }
+  try {
+    var fn = OPS[op];
+    if (!fn) return out({ ok: false, error: 'bad-op', message: 'unknown op ' + op });
+    var res = fn(args) || {};
+    res.ok = true;
+    return out(res);
+  } catch (e) {
+    var msg = String(e && e.message ? e.message : e);
+    var code = /assistive|accessibility|not allowed|1002|-1719|-25211/i.test(msg) ? 'permission' : 'failed';
+    return out({ ok: false, error: code, message: msg });
+  }
+}
+
+function out(o) { return JSON.stringify(o); }
+function sleep(ms) { delay(ms / 1000); }
+
+var SE = null;
+function se() { if (!SE) { SE = Application('System Events'); } return SE; }
+
+// ----------------------------------------------------------------- screens
+function mainHeight() { return $.NSScreen.screens.objectAtIndex(0).frame.size.height; }
+
+function screens() {
+  var list = $.NSScreen.screens;
+  var mh = mainHeight();
+  var res = [];
+  for (var i = 0; i < list.count; i++) {
+    var s = list.objectAtIndex(i);
+    var f = s.frame;
+    res.push({ id: String(i), primary: i === 0, x: f.origin.x, y: mh - (f.origin.y + f.size.height), width: f.size.width, height: f.size.height, scale: s.backingScaleFactor });
+  }
+  return res;
+}
+
+// ------------------------------------------------------------------- mouse
+var BTN = { left: 0, right: 1, middle: 2 };
+var DOWN = { left: 1, right: 3, middle: 25 };
+var UP = { left: 2, right: 4, middle: 26 };
+var DRAG = { left: 6, right: 7, middle: 27 };
+
+function post(ev) { $.CGEventPost(0, ev); }
+
+function currentPos() {
+  var ev = $.CGEventCreate(null);
+  var p = $.CGEventGetLocation(ev);
+  return { x: p.x, y: p.y };
+}
+
+function heldButton() {
+  var names = ['left', 'right', 'middle'];
+  for (var i = 0; i < names.length; i++) if ($.CGEventSourceButtonState(0, BTN[names[i]])) return names[i];
+  return null;
+}
+
+function moveTo(x, y) {
+  var held = heldButton();
+  var type = held ? DRAG[held] : 5;
+  var ev = $.CGEventCreateMouseEvent(null, type, $.CGPointMake(x, y), held ? BTN[held] : 0);
+  post(ev);
+}
+
+function buttonEvent(button, isDown, x, y, clickState) {
+  var p = (x === undefined || x === null) ? currentPos() : { x: x, y: y };
+  var ev = $.CGEventCreateMouseEvent(null, isDown ? DOWN[button] : UP[button], $.CGPointMake(p.x, p.y), BTN[button]);
+  if (clickState) $.CGEventSetIntegerValueField(ev, 1, clickState);
+  post(ev);
+}
+
+// --------------------------------------------------------------- windows
+function cgWindows() {
+  var ref = $.CGWindowListCopyWindowInfo(1 | 16, 0);
+  var arr = ObjC.deepUnwrap(ObjC.castRefToObject(ref)) || [];
+  return arr.filter(function (w) { return w.kCGWindowLayer === 0 && w.kCGWindowBounds && w.kCGWindowBounds.Width > 1; });
+}
+
+function frontPid() {
+  var app = $.NSWorkspace.sharedWorkspace.frontmostApplication;
+  return app ? app.processIdentifier : -1;
+}
+
+function seProcessByPid(pid) {
+  var procs = se().processes.whose({ unixId: pid });
+  if (!procs.length) throw new Error('No process with pid ' + pid);
+  return procs[0];
+}
+
+function seWindowFor(args) {
+  var proc = seProcessByPid(args.pid);
+  var wins = proc.windows();
+  if (!wins.length) throw new Error('Process has no accessible windows');
+  if (args.title) {
+    for (var i = 0; i < wins.length; i++) { try { if (wins[i].name() === args.title) return { proc: proc, win: wins[i] }; } catch (e) {} }
+  }
+  if (args.x !== undefined) {
+    for (var j = 0; j < wins.length; j++) {
+      try { var p = wins[j].position(); if (Math.abs(p[0] - args.x) < 3 && Math.abs(p[1] - args.y) < 3) return { proc: proc, win: wins[j] }; } catch (e) {}
+    }
+  }
+  return { proc: proc, win: wins[0] };
+}
+
+function listWindows() {
+  var fp = frontPid();
+  var wins = cgWindows();
+  var needTitles = {};
+  wins.forEach(function (w) { if (!w.kCGWindowName) needTitles[w.kCGWindowOwnerPID] = true; });
+  var seTitles = {};
+  Object.keys(needTitles).forEach(function (pid) {
+    try {
+      var p = seProcessByPid(Number(pid));
+      var ws = p.windows();
+      seTitles[pid] = ws.map(function (w) { try { var pos = w.position(); return { name: w.name(), x: pos[0], y: pos[1] }; } catch (e) { return null; } }).filter(Boolean);
+    } catch (e) { /* no accessibility permission or no windows */ }
+  });
+  var seenFront = false;
+  return wins.map(function (w) {
+    var b = w.kCGWindowBounds;
+    var title = w.kCGWindowName || '';
+    if (!title && seTitles[w.kCGWindowOwnerPID]) {
+      var m = seTitles[w.kCGWindowOwnerPID].filter(function (t) { return Math.abs(t.x - b.X) < 3 && Math.abs(t.y - b.Y) < 3; })[0];
+      if (m) title = m.name || '';
+    }
+    var focused = false;
+    if (!seenFront && w.kCGWindowOwnerPID === fp) { focused = true; seenFront = true; }
+    return { id: String(w.kCGWindowNumber), title: title, app: w.kCGWindowOwnerName || '', pid: w.kCGWindowOwnerPID, x: b.X, y: b.Y, width: b.Width, height: b.Height, focused: focused };
+  });
+}
+
+function windowAction(args) {
+  var r = seWindowFor(args);
+  var win = r.win, proc = r.proc;
+  switch (args.action) {
+    case 'focus':
+      proc.frontmost = true;
+      try { win.actions.byName('AXRaise').perform(); } catch (e) {}
+      break;
+    case 'minimize': win.attributes.byName('AXMinimized').value = true; break;
+    case 'restore':
+      try { win.attributes.byName('AXMinimized').value = false; } catch (e) {}
+      try { win.attributes.byName('AXFullScreen').value = false; } catch (e) {}
+      proc.frontmost = true;
+      break;
+    case 'fullscreen': win.attributes.byName('AXFullScreen').value = !win.attributes.byName('AXFullScreen').value(); break;
+    case 'maximize': {
+      var vf = $.NSScreen.mainScreen.visibleFrame;
+      var mh = mainHeight();
+      win.position = [vf.origin.x, mh - (vf.origin.y + vf.size.height)];
+      win.size = [vf.size.width, vf.size.height];
+      break;
+    }
+    case 'close': {
+      var btns = win.buttons.whose({ subrole: 'AXCloseButton' });
+      if (btns.length) btns[0].click(); else throw new Error('Window has no close button');
+      break;
+    }
+    case 'move': win.position = [args.nx, args.ny]; break;
+    case 'resize': win.size = [args.nw, args.nh]; break;
+    default: throw new Error('unknown window action ' + args.action);
+  }
+  return {};
+}
+
+// ---------------------------------------------------------- accessibility
+function str(fn) { try { var v = fn(); return v === null || v === undefined ? '' : String(v); } catch (e) { return ''; } }
+
+function describe(el, path, withChildren, depth, maxDepth, budget) {
+  budget.n--;
+  var node = { path: path, role: str(function () { return el.role(); }), name: str(function () { return el.name(); }) };
+  var d = str(function () { return el.description(); });
+  if (d && d !== node.role) node.description = d;
+  var t = str(function () { return el.title(); });
+  if (!node.name && t) node.name = t;
+  var v = str(function () { return el.value(); });
+  if (v) node.value = v.slice(0, 500);
+  try { var p = el.position(); var s = el.size(); node.x = p[0]; node.y = p[1]; node.width = s[0]; node.height = s[1]; } catch (e) {}
+  try { node.enabled = el.enabled(); } catch (e) {}
+  try { if (el.focused()) node.focused = true; } catch (e) {}
+  try { node.actions = el.actions().map(function (a) { return a.name(); }).slice(0, 8); } catch (e) {}
+  if (withChildren && depth < maxDepth && budget.n > 0) {
+    var kids = [];
+    try { kids = el.uiElements(); } catch (e) {}
+    var children = [];
+    for (var i = 0; i < kids.length && i < 300 && budget.n > 0; i++) children.push(describe(kids[i], path.concat([i]), true, depth + 1, maxDepth, budget));
+    if (children.length) node.children = children;
+    else if (kids.length) node.childCount = kids.length;
+  }
+  return node;
+}
+
+function resolvePath(pid, path) {
+  var proc = seProcessByPid(pid);
+  var el = proc.windows[path[0]];
+  if (path[0] === -1) el = proc.menuBars[0];
+  for (var i = 1; i < path.length; i++) el = el.uiElements[path[i]];
+  el.role(); // throws if gone
+  return el;
+}
+
+function axTree(args) {
+  var proc = seProcessByPid(args.pid);
+  var budget = { n: args.maxNodes || 400 };
+  var depth = args.depth || 8;
+  var wins = proc.windows();
+  var nodes = [];
+  for (var i = 0; i < wins.length && budget.n > 0; i++) {
+    if (args.windowTitle && str(function () { return wins[i].name(); }).toLowerCase().indexOf(args.windowTitle.toLowerCase()) < 0) continue;
+    nodes.push(describe(wins[i], [i], true, 0, depth, budget));
+  }
+  if (args.includeMenus) {
+    try { nodes.push(describe(proc.menuBars[0], [-1], true, 0, 2, budget)); } catch (e) {}
+  }
+  return { nodes: nodes, truncated: budget.n <= 0 };
+}
+
+function axFind(args) {
+  var proc = seProcessByPid(args.pid);
+  var name = (args.name || '').toLowerCase();
+  var role = (args.role || '').toLowerCase();
+  var limit = args.limit || 20;
+  var budget = { n: args.maxNodes || 2500 };
+  var found = [];
+  function visit(el, path, depth) {
+    if (budget.n-- <= 0 || found.length >= limit || depth > 25) return;
+    var n = (str(function () { return el.name(); }) || str(function () { return el.title(); }) || str(function () { return el.description(); })).toLowerCase();
+    var r = str(function () { return el.role(); }).toLowerCase();
+    if ((name || role) && (!name || n.indexOf(name) >= 0) && (!role || r.indexOf(role) >= 0)) found.push(describe(el, path, false, 0, 0, { n: 1 }));
+    var kids = [];
+    try { kids = el.uiElements(); } catch (e) {}
+    for (var i = 0; i < kids.length && i < 300; i++) visit(kids[i], path.concat([i]), depth + 1);
+  }
+  var wins = proc.windows();
+  for (var i = 0; i < wins.length; i++) visit(wins[i], [i], 0);
+  return { nodes: found, truncated: budget.n <= 0 };
+}
+
+function axAction(args) {
+  var el = resolvePath(args.pid, args.path);
+  switch (args.action) {
+    case 'press': case 'invoke': case 'click': case 'activate': case 'toggle': case 'select':
+      try { el.actions.byName('AXPress').perform(); } catch (e) { el.click(); }
+      break;
+    case 'expand': case 'collapse':
+      try { el.actions.byName('AXShowMenu').perform(); } catch (e) { el.click(); }
+      break;
+    case 'focus': el.focused = true; break;
+    case 'set_value': el.value = String(args.value); break;
+    default: throw new Error('unknown action ' + args.action);
+  }
+  return {};
+}
+
+function menuSelect(args) {
+  var proc = seProcessByPid(args.pid);
+  proc.frontmost = true;
+  sleep(150);
+  var names = args.path;
+  var bar = proc.menuBars[0];
+  function pickByName(collection, wanted) {
+    var items = collection();
+    var w = wanted.toLowerCase().replace(/…|\.\.\.$/g, '').trim();
+    for (var i = 0; i < items.length; i++) {
+      var n = str(function () { return items[i].name(); }).toLowerCase().replace(/…|\.\.\.$/g, '').trim();
+      if (n === w) return items[i];
+    }
+    for (var j = 0; j < items.length; j++) {
+      var m = str(function () { return items[j].name(); }).toLowerCase();
+      if (m.indexOf(w) === 0) return items[j];
+    }
+    throw new Error('Menu item not found: ' + wanted);
+  }
+  var top = pickByName(function () { return bar.menuBarItems(); }, names[0]);
+  if (names.length === 1) { top.click(); return {}; }
+  var menu = top.menus[0];
+  for (var k = 1; k < names.length; k++) {
+    var item = pickByName(function () { return menu.menuItems(); }, names[k]);
+    if (k === names.length - 1) { item.click(); return {}; }
+    menu = item.menus[0];
+  }
+  return {};
+}
+
+function runningApps(args) {
+  var apps = $.NSWorkspace.sharedWorkspace.runningApplications;
+  var res = [];
+  for (var i = 0; i < apps.count; i++) {
+    var a = apps.objectAtIndex(i);
+    if (a.activationPolicy !== 0) continue; // regular apps only
+    var name = a.localizedName.js;
+    var bundle = a.bundleURL ? a.bundleURL.path.js : '';
+    var bid = a.bundleIdentifier ? a.bundleIdentifier.js : '';
+    if (args.name && name.toLowerCase().indexOf(args.name.toLowerCase()) < 0 && bundle.indexOf(args.name) < 0 && bid !== args.name) continue;
+    res.push({ name: name, pid: a.processIdentifier, bundlePath: bundle, bundleId: bid, active: a.active });
+  }
+  return { apps: res };
+}
+
+function ocr(args) {
+  ObjC.import('Vision');
+  var url = $.NSURL.fileURLWithPath(args.path);
+  var req = $.VNRecognizeTextRequest.alloc.init;
+  req.recognitionLevel = 0;
+  req.usesLanguageCorrection = true;
+  var handler = $.VNImageRequestHandler.alloc.initWithURLOptions(url, $.NSDictionary.alloc.init);
+  var ok = handler.performRequestsError($.NSArray.arrayWithObject(req), null);
+  if (!ok) throw new Error('Vision OCR failed');
+  var results = req.results;
+  var lines = [];
+  for (var i = 0; i < results.count; i++) {
+    var obs = results.objectAtIndex(i);
+    var cand = obs.topCandidates(1);
+    if (!cand || cand.count === 0) continue;
+    var c = cand.objectAtIndex(0);
+    var bb = obs.boundingBox;
+    lines.push({ text: c.string.js, confidence: c.confidence, nx: bb.origin.x, ny: bb.origin.y, nw: bb.size.width, nh: bb.size.height });
+  }
+  return { lines: lines };
+}
+
+var OPS = {
+  screens: function () { return { screens: screens() }; },
+  mouse_pos: function () { return currentPos(); },
+  mouse_move: function (a) { moveTo(a.x, a.y); return {}; },
+  mouse_button: function (a) { buttonEvent(a.button || 'left', a.state === 'down', a.x, a.y); return {}; },
+  click: function (a) {
+    var b = a.button || 'left';
+    if (a.x !== undefined && a.x !== null) { moveTo(a.x, a.y); sleep(30); }
+    var count = a.count || 1;
+    for (var i = 1; i <= count; i++) { buttonEvent(b, true, a.x, a.y, i); buttonEvent(b, false, a.x, a.y, i); if (i < count) sleep(60); }
+    return {};
+  },
+  scroll: function (a) {
+    if (a.x !== undefined && a.x !== null) { moveTo(a.x, a.y); sleep(30); }
+    // positive dy scrolls down → negative wheel delta on macOS
+    var ev = $.CGEventCreateScrollWheelEvent2(null, 1, 2, -(a.dy || 0), -(a.dx || 0), 0);
+    post(ev);
+    return {};
+  },
+  key: function (a) {
+    var opts = a.using && a.using.length ? { using: a.using } : {};
+    for (var i = 0; i < (a.repeat || 1); i++) {
+      if (a.keyCode !== undefined && a.keyCode !== null) se().keyCode(a.keyCode, opts);
+      else se().keystroke(a.keystroke, opts);
+      if (a.repeat > 1) sleep(40);
+    }
+    return {};
+  },
+  key_toggle: function (a) { post($.CGEventCreateKeyboardEvent(null, a.keyCode, a.state === 'down')); return {}; },
+  type: function (a) { se().keystroke(a.text); return {}; },
+  windows: function () { return { windows: listWindows() }; },
+  window_action: windowAction,
+  ax_tree: axTree,
+  ax_find: axFind,
+  ax_action: axAction,
+  menu_select: menuSelect,
+  running_apps: runningApps,
+  quit_app: function (a) { Application(a.name).quit(); return {}; },
+  activate_app: function (a) { var app = Application(a.name); app.activate(); return {}; },
+  ocr: ocr,
+};

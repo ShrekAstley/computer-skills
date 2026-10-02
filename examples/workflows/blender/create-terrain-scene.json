@@ -1,0 +1,163 @@
+{
+  "schema": 1,
+  "id": "blender/create-terrain-scene",
+  "name": "Create a terrain scene, save it and export the terrain",
+  "app": {
+    "id": "blender",
+    "name": "Blender",
+    "version": ">=3.6",
+    "tested_version": "4.0.2"
+  },
+  "platforms": [
+    "linux",
+    "windows",
+    "macos"
+  ],
+  "description": "Generates a procedural terrain (subdivided grid displaced by noise), adds a material, sun light, sky and camera, saves the .blend project and exports only the terrain mesh (OBJ, GLB/GLTF, FBX or STL by file extension). Runs Blender headless through its Python API, so it needs no GUI and is fully verifiable.",
+  "tags": [
+    "3d",
+    "terrain",
+    "landscape",
+    "environment",
+    "procedural",
+    "export",
+    "save"
+  ],
+  "triggers": [
+    "create a terrain scene",
+    "generate terrain",
+    "make a landscape in blender",
+    "export terrain",
+    "create terrain and export"
+  ],
+  "parameters": [
+    {
+      "name": "blend_path",
+      "type": "path",
+      "required": true,
+      "description": "Where to save the .blend project (absolute path)."
+    },
+    {
+      "name": "export_path",
+      "type": "path",
+      "required": true,
+      "description": "Where to export the terrain mesh; the extension (.obj, .glb, .gltf, .fbx, .stl) selects the format."
+    },
+    {
+      "name": "size",
+      "type": "number",
+      "default": 50,
+      "description": "Terrain width/depth in metres."
+    },
+    {
+      "name": "subdivisions",
+      "type": "integer",
+      "default": 128,
+      "description": "Grid resolution per side."
+    },
+    {
+      "name": "height",
+      "type": "number",
+      "default": 6,
+      "description": "Displacement strength (max height variation)."
+    },
+    {
+      "name": "seed",
+      "type": "integer",
+      "default": 1,
+      "description": "Changes the noise pattern."
+    }
+  ],
+  "preconditions": [],
+  "steps": [
+    {
+      "id": "generate",
+      "title": "Generate terrain, light, camera; save .blend; export terrain",
+      "action": {
+        "tool": "app_script",
+        "args": {
+          "app": "blender",
+          "background": true,
+          "timeout_ms": 600000,
+          "code": "import bpy, os, mathutils\nout_blend = r\"{{blend_path}}\"\nout_export = r\"{{export_path}}\"\nsize = float(\"{{size}}\")\nsubdiv = int(\"{{subdivisions}}\")\nstrength = float(\"{{height}}\")\nseed = int(\"{{seed}}\")\n\nbpy.ops.wm.read_factory_settings(use_empty=True)\nscene = bpy.context.scene\n\nbpy.ops.mesh.primitive_grid_add(x_subdivisions=subdiv, y_subdivisions=subdiv, size=size)\nterrain = bpy.context.active_object\nterrain.name = 'Terrain'\n\noffset = bpy.data.objects.new('TerrainNoiseOffset', None)\nscene.collection.objects.link(offset)\noffset.location = ((seed * 137.13) % 1000.0, (seed * 71.7) % 1000.0, 0.0)\n\ntex = bpy.data.textures.new('TerrainNoise', type='CLOUDS')\ntex.noise_scale = max(size / 5.0, 0.5)\ntex.noise_depth = 6\nmod = terrain.modifiers.new('Displace', 'DISPLACE')\nmod.texture = tex\nmod.strength = strength\nmod.texture_coords = 'OBJECT'\nmod.texture_coords_object = offset\nbpy.context.view_layer.objects.active = terrain\nbpy.ops.object.modifier_apply(modifier=mod.name)\nbpy.ops.object.shade_smooth()\n\nmat = bpy.data.materials.new('TerrainMaterial')\nmat.use_nodes = True\nbsdf = mat.node_tree.nodes.get('Principled BSDF')\nif bsdf:\n    bsdf.inputs['Base Color'].default_value = (0.22, 0.38, 0.14, 1.0)\n    bsdf.inputs['Roughness'].default_value = 0.9\nterrain.data.materials.append(mat)\n\nbpy.ops.object.light_add(type='SUN', location=(0, 0, size))\nsun = bpy.context.active_object\nsun.data.energy = 3.0\nsun.rotation_euler = (0.7, 0.2, 0.6)\n\nbpy.ops.object.camera_add(location=(size * 0.9, -size * 0.9, size * 0.55))\ncam = bpy.context.active_object\ncam.rotation_euler = (mathutils.Vector((0, 0, 0)) - cam.location).to_track_quat('-Z', 'Y').to_euler()\nscene.camera = cam\n\nworld = scene.world or bpy.data.worlds.new('World')\nscene.world = world\nworld.use_nodes = True\nbg = world.node_tree.nodes.get('Background')\nif bg:\n    bg.inputs[0].default_value = (0.55, 0.72, 1.0, 1.0)\n\nos.makedirs(os.path.dirname(os.path.abspath(out_blend)), exist_ok=True)\nbpy.ops.wm.save_as_mainfile(filepath=out_blend)\n\nbpy.ops.object.select_all(action='DESELECT')\nterrain.select_set(True)\nbpy.context.view_layer.objects.active = terrain\nos.makedirs(os.path.dirname(os.path.abspath(out_export)), exist_ok=True)\next = os.path.splitext(out_export)[1].lower()\nif ext == '.obj':\n    if hasattr(bpy.ops.wm, 'obj_export'):\n        bpy.ops.wm.obj_export(filepath=out_export, export_selected_objects=True, export_materials=True)\n    else:\n        bpy.ops.export_scene.obj(filepath=out_export, use_selection=True)\nelif ext in ('.glb', '.gltf'):\n    bpy.ops.export_scene.gltf(filepath=out_export, use_selection=True, export_format='GLB' if ext == '.glb' else 'GLTF_SEPARATE')\nelif ext == '.fbx':\n    bpy.ops.export_scene.fbx(filepath=out_export, use_selection=True)\nelif ext == '.stl':\n    if hasattr(bpy.ops.wm, 'stl_export'):\n        bpy.ops.wm.stl_export(filepath=out_export, export_selected_objects=True)\n    else:\n        bpy.ops.export_mesh.stl(filepath=out_export, use_selection=True)\nelse:\n    raise ValueError('Unsupported export format: ' + ext)\n\nprint('TERRAIN_OK vertices=%d blender=%s' % (len(terrain.data.vertices), bpy.app.version_string))\n"
+        }
+      },
+      "expect": [
+        {
+          "type": "file_exists",
+          "path": "{{blend_path}}",
+          "min_bytes": 10000,
+          "modified_after_start": true,
+          "label": "project saved"
+        },
+        {
+          "type": "file_exists",
+          "path": "{{export_path}}",
+          "min_bytes": 1000,
+          "modified_after_start": true,
+          "label": "terrain exported"
+        }
+      ],
+      "timeout_ms": 15000,
+      "retries": 0,
+      "on_failure": "abort",
+      "hints": {
+        "notes": "If an operator is missing in this Blender version (e.g. exporters renamed in 4.x), check bpy.app.version and adapt the export call; the step output (stdout/stderr) shows the Python traceback."
+      }
+    }
+  ],
+  "expected_results": [
+    {
+      "type": "file_exists",
+      "path": "{{blend_path}}",
+      "min_bytes": 10000
+    },
+    {
+      "type": "file_exists",
+      "path": "{{export_path}}",
+      "min_bytes": 1000
+    }
+  ],
+  "failure_modes": [
+    {
+      "symptom": "glTF export fails with \"ModuleNotFoundError: No module named 'numpy'\" (distribution-packaged Blender, e.g. Ubuntu's apt package)",
+      "recovery": "Export to .obj, .fbx or .stl instead (no numpy needed), or install numpy for Blender's Python (installing software needs the user's approval). The official blender.org build bundles numpy."
+    },
+    {
+      "symptom": "app_script fails with 'Blender executable not found'",
+      "recovery": "Locate Blender with app action find, or pass app_script.executable; ask the user to install it if absent (installing needs approval)."
+    },
+    {
+      "symptom": "AttributeError: Calling operator 'bpy.ops.wm.obj_export' / 'export_scene.obj' could not be found",
+      "recovery": "Exporter names differ by version. Use the other operator name, or export to .glb which is stable across versions."
+    },
+    {
+      "symptom": "Times out on large subdivisions",
+      "recovery": "Lower subdivisions (e.g. 64) or raise timeout_ms."
+    }
+  ],
+  "notes": [
+    "To view the result interactively: app launch Blender with params {\"file\": \"<blend_path>\"}.",
+    "For a richer environment, extend the script (scatter rocks/trees with particle systems or geometry nodes) and save it as a new workflow version."
+  ],
+  "stats": {
+    "runs": 0,
+    "successes": 0,
+    "failures": 0,
+    "last_success": null,
+    "last_failure": null,
+    "last_verified": null,
+    "last_failure_reason": null
+  },
+  "version": 1,
+  "history": [
+    {
+      "version": 1,
+      "date": "2026-10-01T00:00:00.000Z",
+      "change": "built-in example"
+    }
+  ],
+  "source": "builtin",
+  "created": "2026-10-01T00:00:00.000Z",
+  "updated": "2026-10-01T00:00:00.000Z"
+}
