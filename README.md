@@ -18,28 +18,79 @@ workflow_run    → app_script (Blender Python, headless) → expect: terrain.bl
 
 ### Claude Code — Install → Enable → Use
 
-Inside Claude Code:
+**Prerequisite:** Node.js 18 or newer on the `PATH` Claude Code starts with (`node --version`). The Claude Code native installer does not include Node.js; if it's missing, the plugin tells Claude at session start how to fix it instead of failing silently.
+
+**1. Install** — inside Claude Code:
 
 ```
 /plugin marketplace add shrekastley/computer-skills
 /plugin install computer-skills@computer-skills
 ```
 
-Restart (or `/reload-plugins`). That's it: the plugin brings the MCP server (28 tools), the `computer-skills` skill, the `computer-operator` and `app-explorer` subagents and three slash commands. Check with `/mcp` and `/computer-skills:computer-doctor`.
+or from a shell: `claude plugin marketplace add shrekastley/computer-skills && claude plugin install computer-skills@computer-skills`.
 
-From a shell instead (wraps `claude plugin …`; `--project` installs for the current repo):
+This installs, in one step:
+
+| Component | What it is |
+|-----------|------------|
+| MCP server `computer-skills` | 28 computer-control tools (`node …/bin/computer-skills.js serve`, no `npm install` needed) |
+| Skill `computer-skills` | the operator procedure (inspect → plan → act → verify → recover → remember) |
+| Subagents | `computer-operator` (executes), `app-explorer` (learns unfamiliar apps, repairs workflows) |
+| Commands | `/computer-skills:computer-doctor`, `/computer-skills:computer-workflows`, `/computer-skills:operate` |
+| Hook | a silent `SessionStart` Node.js check |
+| Dependency | the [expert-workflow](https://github.com/shrekastley/expert-workflow) plugin (orchestration methodology this skill builds on), installed automatically |
+
+**2. Enable** — restart Claude Code (or `/reload-plugins`). Plugins are enabled on install. Confirm:
+
+```
+/mcp                                  → computer-skills  ✔ connected
+/computer-skills:computer-doctor      → what works on this machine (screen, input, windows, accessibility, OCR) and what to install
+```
+
+On macOS, grant the app running Claude Code (Terminal, iTerm, VS Code, Cursor, Claude desktop) **Accessibility** and **Screen Recording** in System Settings → Privacy & Security, then restart it. Linux X11: `sudo apt install xdotool wmctrl x11-utils imagemagick xclip tesseract-ocr`. Windows: nothing extra.
+
+**3. Use** — just ask: *"Open Blender, create a terrain scene, save the project and export the terrain"*, or `/computer-skills:operate <task>`.
+
+#### Share with a team
+
+Run `claude plugin install computer-skills@computer-skills --scope project` in a repo (or `./install.sh --project`), or commit this `.claude/settings.json`; teammates are prompted to install when they trust the folder:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "computer-skills": { "source": { "source": "github", "repo": "ShrekAstley/computer-skills" } }
+  },
+  "enabledPlugins": { "computer-skills@computer-skills": true }
+}
+```
+
+Project-specific workflows go in `.computer-skills/workflows/` (commit them) and a stricter safety policy in `.computer-skills/config.json` (projects can only tighten safety, never loosen it).
+
+#### Update, disable, uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shrekastley/computer-skills/main/install.sh | bash
+claude plugin marketplace update computer-skills      # fetch the latest marketplace
+claude plugin update computer-skills@computer-skills  # install the new version
+claude plugin disable computer-skills@computer-skills # keep installed, turn off
+claude plugin uninstall computer-skills@computer-skills
+claude plugin prune                                   # remove expert-workflow if nothing else needs it
 ```
 
-Windows PowerShell:
+Your learned workflows, app profiles and config live in `~/.computer-skills/` and survive updates and uninstalls.
 
-```powershell
-irm https://raw.githubusercontent.com/shrekastley/computer-skills/main/install.ps1 | iex
-```
+#### Without the plugin system
 
-The marketplace also lists the companion **expert-workflow** plugin (`/plugin install expert-workflow@computer-skills`), whose plan → delegate → verify → escalate methodology this skill follows.
+`./install.sh --copy` (or `install.ps1 -Copy`) copies the skill, subagents and commands into `~/.claude/` and registers the server with `claude mcp add`; useful for air-gapped machines. The shell installers (`curl … install.sh | bash`, `irm … install.ps1 | iex`) otherwise just run the plugin commands above.
+
+#### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `/mcp` shows computer-skills failed, or Claude says Node.js is missing | Install Node.js 18+; ensure `node` is on the PATH Claude Code inherits (dock/start-menu launches may miss nvm/Homebrew paths — start Claude Code from a terminal to compare). Restart. |
+| Tools work but screenshots are blank / clicks do nothing (macOS) | Grant Accessibility + Screen Recording to the host app, restart it. |
+| Clicks don't reach an app (Windows) | The app runs as administrator; run Claude Code elevated or avoid it. |
+| `doctor` reports missing capabilities (Linux) | Install the listed tools (`./install.sh --with-deps` does it). |
+| Anything else | `node ~/.claude/plugins/cache/computer-skills/computer-skills/*/bin/computer-skills.js doctor`, logs in `~/.computer-skills/logs/`, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md). |
 
 ### OpenCode
 

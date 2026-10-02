@@ -1,24 +1,39 @@
 {
   "name": "computer-skills",
-  "owner": { "name": "ShrekAstley" },
+  "owner": {
+    "name": "ShrekAstley"
+  },
   "metadata": {
-    "description": "Computer Skills: let coding agents operate the computer — terminal, apps, screen, input — with verification, safety and learned workflows."
+    "description": "Computer Skills: let coding agents operate the computer \u2014 terminal, apps, screen, input \u2014 with verification, safety and learned workflows."
   },
   "plugins": [
     {
       "name": "computer-skills",
       "source": "./",
-      "description": "MCP server (28 tools) + operator skill + subagents for structured, verifiable computer control with persistent workflow memory.",
+      "description": "MCP server (28 tools) + operator skill + subagents for structured, verifiable computer control with persistent workflow memory. Installs expert-workflow as a dependency.",
       "version": "1.0.0",
       "category": "productivity",
-      "keywords": ["computer-use", "automation", "desktop", "mcp", "workflows"]
+      "keywords": [
+        "computer-use",
+        "automation",
+        "desktop",
+        "mcp",
+        "workflows"
+      ]
     },
     {
       "name": "expert-workflow",
-      "source": { "source": "github", "repo": "shrekastley/expert-workflow" },
+      "source": {
+        "source": "github",
+        "repo": "shrekastley/expert-workflow"
+      },
       "description": "Companion: orchestrator skill that routes work to expert (Opus), worker (Sonnet) and scout (Haiku) subagents. computer-skills follows its plan/verify/recover methodology.",
       "category": "productivity",
-      "keywords": ["subagents", "orchestration", "delegation"]
+      "keywords": [
+        "subagents",
+        "orchestration",
+        "delegation"
+      ]
     }
   ]
 }

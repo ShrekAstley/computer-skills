@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { VERSION } from '../../src/version.js';
 import { PACKAGE_ROOT } from '../../src/core/paths.js';
@@ -23,6 +24,28 @@ test('plugin MCP config points at the CLI', () => {
   assert.equal(srv.command, 'node');
   assert.ok(srv.args[0].includes('${CLAUDE_PLUGIN_ROOT}/bin/computer-skills.js'));
   assert.ok(fs.existsSync(path.join(PACKAGE_ROOT, 'bin', 'computer-skills.js')));
+});
+
+test('plugin hooks and dependencies are wired', () => {
+  const plugin = read('.claude-plugin/plugin.json');
+  assert.deepEqual(plugin.dependencies, ['expert-workflow']);
+  const mp = read('.claude-plugin/marketplace.json');
+  assert.ok(mp.plugins.some((p) => p.name === 'expert-workflow'), 'dependency resolvable from this marketplace');
+  const hooks = read('hooks/hooks.json');
+  const cmd = hooks.hooks.SessionStart[0].hooks[0].command;
+  assert.match(cmd, /\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/check-node\.sh/);
+  assert.ok(fs.existsSync(path.join(PACKAGE_ROOT, 'hooks', 'check-node.sh')));
+});
+
+test('node check hook is silent with a modern node and explains a missing one', { skip: process.platform === 'win32' && 'POSIX sh test' }, () => {
+  const script = path.join(PACKAGE_ROOT, 'hooks', 'check-node.sh');
+  const binDir = path.dirname(process.execPath);
+  const ok = spawnSync('sh', [script], { env: { PATH: `${binDir}:/usr/bin:/bin` }, encoding: 'utf8' });
+  assert.equal(ok.status, 0);
+  assert.equal(ok.stdout, '');
+  const missing = spawnSync('/bin/sh', [script], { env: { PATH: tmpDir() }, encoding: 'utf8' });
+  assert.equal(missing.status, 0);
+  assert.match(missing.stdout, /Node\.js was not found/);
 });
 
 test('skills, agents and commands have valid frontmatter', () => {

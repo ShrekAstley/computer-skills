@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). Workflow documents carry their own `schema` version (currently 1).
 
+## [Unreleased]
+
+### Added
+- Claude Code: `expert-workflow` is now a plugin dependency (installed automatically from this marketplace).
+- Claude Code: `SessionStart` hook that, when Node.js 18+ is missing or too old, tells Claude why the computer tools are unavailable and how to fix it (silent otherwise).
+- `/computer-skills:computer-doctor` diagnoses a server that failed to start.
+- README: verified Claude Code install, team setup, update/uninstall and troubleshooting guide.
+
 ## [1.0.0] - 2026-10-01
 
 ### Added
