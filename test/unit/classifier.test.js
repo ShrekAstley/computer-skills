@@ -33,7 +33,9 @@ test('high risk', () => {
 });
 
 test('critical risk', () => {
-  for (const c of ['shutdown -h now', 'reboot', 'Stop-Computer', 'csrutil disable', 'ufw disable', 'passwd root', 'diskpart', 'echo x > /etc/hosts', 'rm -rf /etc/nginx', 'crontab -r', 'rm ~/.ssh/id_rsa']) {
+  const hosts = process.platform === 'win32' ? `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\drivers\\etc\\hosts` : '/etc/hosts';
+  const sysDir = process.platform === 'win32' ? `${process.env.SystemRoot || 'C:\\Windows'}\\Temp2` : '/etc/nginx';
+  for (const c of ['shutdown -h now', 'reboot', 'Stop-Computer', 'csrutil disable', 'ufw disable', 'passwd root', 'diskpart', `echo x > ${hosts}`, `rm -rf ${sysDir}`, 'crontab -r', 'rm ~/.ssh/id_rsa']) {
     assert.equal(risk(c), 'critical', c);
   }
 });
