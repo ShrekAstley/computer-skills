@@ -34,6 +34,15 @@ export class AdapterRegistry {
     } catch {
       return 0;
     }
+    // Node 18/20 treat .js as CommonJS unless the nearest package.json says otherwise.
+    const pkg = path.join(dir, 'package.json');
+    if (!fs.existsSync(pkg)) {
+      try {
+        fs.writeFileSync(pkg, '{ "type": "module" }\n');
+      } catch {
+        /* read-only dir: .mjs adapters still work */
+      }
+    }
     let n = 0;
     for (const f of files) {
       try {

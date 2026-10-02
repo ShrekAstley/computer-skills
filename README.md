@@ -159,8 +159,7 @@ computer-skills serve | doctor | tools | env [sections] | call <tool> '<json>' [
 ## Repository layout
 
 ```text
-.claude-plugin/          plugin.json + marketplace.json (Claude Code plugin & marketplace)
-.mcp.json                MCP server registration used by the plugin
+.claude-plugin/          plugin.json (incl. MCP server) + marketplace.json
 bin/computer-skills.js   CLI + MCP stdio server entry point
 src/
   core/                  config, errors, logging, process execution, keys, paths

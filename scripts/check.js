@@ -2,6 +2,7 @@
 // Zero-dependency static checks: syntax, unused imports, JSON manifests, generated docs, example workflows.
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -43,7 +44,7 @@ for (const f of files) {
   }
 }
 
-for (const j of ['package.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', '.mcp.json']) {
+for (const j of ['package.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json']) {
   try {
     JSON.parse(fs.readFileSync(path.join(root, j), 'utf8'));
   } catch (err) {
@@ -54,7 +55,7 @@ for (const j of ['package.json', '.claude-plugin/plugin.json', '.claude-plugin/m
 // Platform helper scripts: JXA is JavaScript (node can parse it); PowerShell is parsed when pwsh is available.
 {
   const jxa = path.join(root, 'src', 'platform', 'helpers', 'macos_helper.jxa');
-  const tmp = path.join(fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'cs-jxa-')), 'helper.js');
+  const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'cs-jxa-')), 'helper.js');
   fs.copyFileSync(jxa, tmp);
   const r = spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf8' });
   if (r.status !== 0) fail(`syntax: macos_helper.jxa\n${r.stderr}`);
@@ -72,7 +73,7 @@ if (docs.status !== 0) fail(docs.stderr.trim());
 
 const wf = spawnSync(process.execPath, [path.join(root, 'bin', 'computer-skills.js'), 'workflows', 'validate', path.join(root, 'examples', 'workflows')], {
   encoding: 'utf8',
-  env: { ...process.env, COMPUTER_SKILLS_HOME: fs.mkdtempSync(path.join((process.env.TMPDIR || '/tmp'), 'cs-check-')) },
+  env: { ...process.env, COMPUTER_SKILLS_HOME: fs.mkdtempSync(path.join((os.tmpdir()), 'cs-check-')) },
 });
 if (wf.status !== 0) fail(`example workflows:\n${wf.stdout}${wf.stderr}`);
 

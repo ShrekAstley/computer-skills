@@ -2,9 +2,31 @@
   "name": "computer-skills",
   "version": "1.0.0",
   "description": "Structured computer control for AI agents: terminal and process control, app launching, windows, screenshots/OCR/accessibility, mouse and keyboard, verification, safety policies, and a persistent memory of learned app workflows.",
-  "author": { "name": "ShrekAstley" },
+  "author": {
+    "name": "ShrekAstley"
+  },
   "homepage": "https://github.com/shrekastley/computer-skills",
   "repository": "https://github.com/shrekastley/computer-skills",
   "license": "MIT",
-  "keywords": ["computer-use", "automation", "desktop", "mcp", "workflows", "blender", "gui", "terminal", "ocr", "accessibility"]
+  "keywords": [
+    "computer-use",
+    "automation",
+    "desktop",
+    "mcp",
+    "workflows",
+    "blender",
+    "gui",
+    "terminal",
+    "ocr",
+    "accessibility"
+  ],
+  "mcpServers": {
+    "computer-skills": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/computer-skills.js",
+        "serve"
+      ]
+    }
+  }
 }

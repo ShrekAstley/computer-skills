@@ -17,8 +17,9 @@ test('versions are in sync', () => {
 });
 
 test('plugin MCP config points at the CLI', () => {
-  const mcp = read('.mcp.json');
-  const srv = mcp.mcpServers['computer-skills'];
+  const srv = read('.claude-plugin/plugin.json').mcpServers['computer-skills'];
+  // No repo-root .mcp.json: Claude Code would load it as *project* config, where CLAUDE_PLUGIN_ROOT is unset.
+  assert.equal(fs.existsSync(path.join(PACKAGE_ROOT, '.mcp.json')), false);
   assert.equal(srv.command, 'node');
   assert.ok(srv.args[0].includes('${CLAUDE_PLUGIN_ROOT}/bin/computer-skills.js'));
   assert.ok(fs.existsSync(path.join(PACKAGE_ROOT, 'bin', 'computer-skills.js')));

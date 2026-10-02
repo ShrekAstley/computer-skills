@@ -26,7 +26,6 @@
     "adapters",
     "examples",
     ".claude-plugin",
-    ".mcp.json",
     "install.sh",
     "install.ps1"
   ],
