@@ -49,7 +49,8 @@ const check = process.argv.includes('--check');
 const text = render();
 let stale = false;
 for (const f of targets) {
-  const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+  // Normalise line endings: Windows checkouts may use CRLF.
+  const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n') : '';
   if (cur !== text) {
     stale = true;
     if (!check) {
