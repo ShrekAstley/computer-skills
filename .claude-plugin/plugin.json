@@ -30,6 +30,6 @@
     }
   },
   "dependencies": [
-    "expert-workflow"
+    "expert-workflow@expert-workflow"
   ]
 }

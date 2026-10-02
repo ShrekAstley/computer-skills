@@ -22,6 +22,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Plugin = 'computer-skills'
+# computer-skills depends on expert-workflow, published in its own marketplace.
+$DepRepo = 'shrekastley/expert-workflow'
 $StateHome = if ($env:COMPUTER_SKILLS_HOME) { $env:COMPUTER_SKILLS_HOME } else { Join-Path $HOME '.computer-skills' }
 $Runtime = Join-Path $StateHome 'runtime'
 $Scope = if ($Project) { 'project' } else { 'user' }
@@ -80,9 +82,12 @@ function Install-Claude {
     $srcArg = $Repo
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot '.claude-plugin'))) { $srcArg = $PSScriptRoot }
     Say "Installing with Claude Code's plugin installer (scope: $Scope)"
-    try { & claude plugin marketplace add $srcArg } catch { Warn 'marketplace add reported an error (it may already exist); continuing' }
+    # The dependency's marketplace must be known before the install so expert-workflow installs with it.
+    try { & claude plugin marketplace add $DepRepo --scope $Scope } catch { Warn "could not add the $DepRepo marketplace (it may already exist); continuing" }
+    $mpScope = if ($srcArg -eq $Repo) { $Scope } else { 'user' }  # never write a local checkout path into shared project settings
+    try { & claude plugin marketplace add $srcArg --scope $mpScope } catch { Warn 'marketplace add reported an error (it may already exist); continuing' }
     & claude plugin install "$Plugin@$Plugin" --scope $Scope
-    if ($LASTEXITCODE -ne 0) { throw "Plugin install failed. In Claude Code run: /plugin marketplace add $Repo  then  /plugin install $Plugin@$Plugin" }
+    if ($LASTEXITCODE -ne 0) { throw "Plugin install failed. In Claude Code run: /plugin marketplace add $DepRepo  /plugin marketplace add $Repo  then  /plugin install $Plugin@$Plugin" }
     Say 'Done. Restart Claude Code; check /mcp and run /computer-skills:computer-doctor.'
   } else {
     if (-not $Copy) { Warn "'claude' CLI not found; registering the MCP server and copying the skill instead." }

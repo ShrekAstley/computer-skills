@@ -28,9 +28,14 @@ test('plugin MCP config points at the CLI', () => {
 
 test('plugin hooks and dependencies are wired', () => {
   const plugin = read('.claude-plugin/plugin.json');
-  assert.deepEqual(plugin.dependencies, ['expert-workflow']);
+  // expert-workflow lives in its own marketplace (shrekastley/expert-workflow); it is not re-listed here.
+  assert.deepEqual(plugin.dependencies, ['expert-workflow@expert-workflow']);
   const mp = read('.claude-plugin/marketplace.json');
-  assert.ok(mp.plugins.some((p) => p.name === 'expert-workflow'), 'dependency resolvable from this marketplace');
+  assert.deepEqual(mp.allowCrossMarketplaceDependenciesOn, ['expert-workflow'], 'cross-marketplace dependency is allowlisted');
+  assert.deepEqual(mp.plugins.map((p) => p.name), ['computer-skills']);
+  for (const f of ['install.sh', 'install.ps1']) {
+    assert.match(fs.readFileSync(path.join(PACKAGE_ROOT, f), 'utf8'), /shrekastley\/expert-workflow/, `${f} adds the dependency's marketplace`);
+  }
   const hooks = read('hooks/hooks.json');
   const cmd = hooks.hooks.SessionStart[0].hooks[0].command;
   assert.match(cmd, /\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/check-node\.sh/);

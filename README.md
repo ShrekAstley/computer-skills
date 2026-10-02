@@ -23,11 +23,14 @@ workflow_run    → app_script (Blender Python, headless) → expect: terrain.bl
 **1. Install** — inside Claude Code:
 
 ```
+/plugin marketplace add shrekastley/expert-workflow
 /plugin marketplace add shrekastley/computer-skills
 /plugin install computer-skills@computer-skills
 ```
 
-or from a shell: `claude plugin marketplace add shrekastley/computer-skills && claude plugin install computer-skills@computer-skills`.
+or from a shell: `claude plugin marketplace add shrekastley/expert-workflow && claude plugin marketplace add shrekastley/computer-skills && claude plugin install computer-skills@computer-skills` (or `./install.sh`, which runs exactly these).
+
+The first line adds the [expert-workflow](https://github.com/shrekastley/expert-workflow) marketplace, so the `expert-workflow` plugin this one depends on installs with it. Skipped it? Run `/plugin marketplace add shrekastley/expert-workflow` afterwards — the missing dependency installs then.
 
 This installs, in one step:
 
@@ -38,7 +41,7 @@ This installs, in one step:
 | Subagents | `computer-operator` (executes), `app-explorer` (learns unfamiliar apps, repairs workflows) |
 | Commands | `/computer-skills:computer-doctor`, `/computer-skills:computer-workflows`, `/computer-skills:operate` |
 | Hook | a silent `SessionStart` Node.js check |
-| Dependency | the [expert-workflow](https://github.com/shrekastley/expert-workflow) plugin (orchestration methodology this skill builds on), installed automatically |
+| Dependency | `expert-workflow@expert-workflow` from [shrekastley/expert-workflow](https://github.com/shrekastley/expert-workflow) (the orchestration methodology this skill builds on), installed automatically |
 
 **2. Enable** — restart Claude Code (or `/reload-plugins`). Plugins are enabled on install. Confirm:
 
@@ -58,9 +61,10 @@ Run `claude plugin install computer-skills@computer-skills --scope project` in a
 ```json
 {
   "extraKnownMarketplaces": {
+    "expert-workflow": { "source": { "source": "github", "repo": "ShrekAstley/expert-workflow" } },
     "computer-skills": { "source": { "source": "github", "repo": "ShrekAstley/computer-skills" } }
   },
-  "enabledPlugins": { "computer-skills@computer-skills": true }
+  "enabledPlugins": { "computer-skills@computer-skills": true, "expert-workflow@expert-workflow": true }
 }
 ```
 

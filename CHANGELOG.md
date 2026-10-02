@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
-- Claude Code: `expert-workflow` is now a plugin dependency (installed automatically from this marketplace).
+- Claude Code: depends on `expert-workflow@expert-workflow` from the [shrekastley/expert-workflow](https://github.com/shrekastley/expert-workflow) marketplace (allowed via `allowCrossMarketplaceDependenciesOn`) instead of re-listing it here; the installers add that marketplace first.
 - Claude Code: `SessionStart` hook that, when Node.js 18+ is missing or too old, tells Claude why the computer tools are unavailable and how to fix it (silent otherwise).
 - `/computer-skills:computer-doctor` diagnoses a server that failed to start.
 - README: verified Claude Code install, team setup, update/uninstall and troubleshooting guide.

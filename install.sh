@@ -16,6 +16,9 @@ REPO="${COMPUTER_SKILLS_REPO:-shrekastley/computer-skills}"
 REF="${COMPUTER_SKILLS_REF:-main}"
 PLUGIN="computer-skills"
 MARKETPLACE="computer-skills"
+# computer-skills depends on expert-workflow, published in its own marketplace.
+DEP_REPO="shrekastley/expert-workflow"
+DEP="expert-workflow@expert-workflow"
 STATE_HOME="${COMPUTER_SKILLS_HOME:-$HOME/.computer-skills}"
 RUNTIME="$STATE_HOME/runtime"
 
@@ -154,9 +157,13 @@ install_claude() {
     local source_arg
     if find_local_src; then source_arg="$SRC"; else source_arg="$REPO"; fi
     say "Installing with Claude Code's plugin installer (scope: $(claude_scope))"
-    claude plugin marketplace add "$source_arg" || warn "marketplace add reported an error (it may already be added); continuing"
+    # The dependency's marketplace must be known before the install so expert-workflow installs with it.
+    claude plugin marketplace add "$DEP_REPO" --scope "$(claude_scope)" || warn "could not add the $DEP_REPO marketplace (it may already be added); continuing"
+    local mp_scope="user"
+    [ "$source_arg" = "$REPO" ] && mp_scope="$(claude_scope)"  # never write a local checkout path into shared project settings
+    claude plugin marketplace add "$source_arg" --scope "$mp_scope" || warn "marketplace add reported an error (it may already be added); continuing"
     claude plugin install "$PLUGIN@$MARKETPLACE" --scope "$(claude_scope)" \
-      || die "claude plugin install failed. Inside Claude Code run:  /plugin marketplace add $REPO   then   /plugin install $PLUGIN@$MARKETPLACE"
+      || die "claude plugin install failed. Inside Claude Code run:  /plugin marketplace add $DEP_REPO   /plugin marketplace add $REPO   then   /plugin install $PLUGIN@$MARKETPLACE"
     say "Done. Restart Claude Code (or /reload-plugins). Check with /mcp (computer-skills) and run /computer-skills:computer-doctor."
   else
     [ "$FORCE_COPY" -eq 1 ] || warn "'claude' CLI not found; registering the MCP server and copying the skill instead."
@@ -166,7 +173,7 @@ install_claude() {
     mkdir -p "$root/agents" && cp "$SRC"/agents/*.md "$root/agents/" && echo "    + $root/agents"
     mkdir -p "$root/commands" && cp "$SRC"/commands/*.md "$root/commands/" && echo "    + $root/commands"
     register claude "$SCOPE" || warn "Register manually: claude mcp add --scope user computer-skills -- node $RUNTIME/bin/computer-skills.js serve"
-    say "Done. Restart Claude Code. For the managed plugin install later: /plugin marketplace add $REPO && /plugin install $PLUGIN@$MARKETPLACE"
+    say "Done. Restart Claude Code. For the managed plugin install later: /plugin marketplace add $DEP_REPO && /plugin marketplace add $REPO && /plugin install $PLUGIN@$MARKETPLACE"
   fi
 }
 
