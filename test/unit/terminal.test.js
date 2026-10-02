@@ -115,6 +115,10 @@ test('background processes: readiness, logs, stop', async () => {
   const bad = await pm.start({ command: 'exit 3' });
   assert.equal(bad.running, false);
   assert.ok(bad.hint);
+  // A command that fails shortly after starting (like slow shell startup on Windows) is still caught.
+  const late = await pm.start({ command: `node -e "setTimeout(() => process.exit(4), 800)"` });
+  assert.equal(late.running, false);
+  assert.equal(late.exit_code, 4);
 });
 
 test('system process listing', async () => {

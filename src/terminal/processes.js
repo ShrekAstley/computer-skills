@@ -81,7 +81,7 @@ export class ProcessManager {
     if (readyPattern || readyPort) {
       ready = await this._waitReady(rec, { readyPattern, readyPort, timeoutMs: readyTimeoutMs, signal });
     } else {
-      await sleep(400); // catch immediate failures (bad command, port in use)
+      await this._settle(rec, signal);
     }
     const res = this.summary(rec, { tailLines: 20 });
     if (ready) res.ready = ready;
@@ -89,6 +89,21 @@ export class ProcessManager {
       res.hint = 'The process exited immediately. Inspect the output above.';
     }
     return res;
+  }
+
+  /**
+   * Catch immediate failures (bad command, port in use): wait until the process
+   * exits, or shows signs of life (output), or a settle window passes. Shell
+   * startup is slow on Windows (PowerShell can take seconds), hence the larger window.
+   */
+  async _settle(rec, signal, maxMs = IS_WIN ? 6000 : 1500) {
+    const end = Date.now() + maxMs;
+    let firstOutputAt = null;
+    while (Date.now() < end && !rec.exited && !signal?.aborted) {
+      if (rec.tail && firstOutputAt === null) firstOutputAt = Date.now();
+      if (firstOutputAt !== null && Date.now() - firstOutputAt > 300) break;
+      await sleep(50);
+    }
   }
 
   async _waitReady(rec, { readyPattern, readyPort, timeoutMs, signal }) {
