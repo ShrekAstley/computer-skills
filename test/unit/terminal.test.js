@@ -40,6 +40,15 @@ test('timeouts kill the command', async () => {
   assert.ok(r.duration_ms < 8000);
 });
 
+test('a signal aborted before the command starts still cancels it', async () => {
+  const ac = new AbortController();
+  ac.abort();
+  const started = Date.now();
+  const r = await runCommand({ command: isWin ? 'ping -n 20 127.0.0.1' : 'sleep 20' }, { config, signal: ac.signal });
+  assert.equal(r.cancelled, true);
+  assert.ok(Date.now() - started < 8000);
+});
+
 test('stdin and env are passed through', async () => {
   const r = await runCommand({ command: `node -e "process.stdin.on('data',d=>process.stdout.write(String(d).toUpperCase()+process.env.CS_X))"`, stdin: 'abc', env: { CS_X: '!' } }, { config });
   assert.equal(r.stdout.trim(), 'ABC!');

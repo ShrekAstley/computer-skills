@@ -122,6 +122,7 @@ export function run(cmd, args = [], opts = {}) {
       killTree(child);
     };
     signal?.addEventListener?.('abort', onAbort, { once: true });
+    if (signal?.aborted) onAbort(); // cancelled before the process started: 'abort' already fired
 
     child.stdout.on('data', (d) => {
       if (outLen < maxBytes) out.push(d);

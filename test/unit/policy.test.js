@@ -78,7 +78,7 @@ test('kill switch and audit log', async () => {
   p.setStopped(false);
   assert.equal(p.isStopped(), false);
   await p.enforce({ tool: 'x', args: {}, assessment: A('low'), summary: 'hello' });
-  await new Promise((r) => setTimeout(r, 50));
+  await p.flushAudit();
   const log = fs.readFileSync(path.join(p.dir, 'audit.jsonl'), 'utf8');
   assert.match(log, /"decision":"allow"/);
 });

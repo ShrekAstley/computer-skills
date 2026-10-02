@@ -30,6 +30,7 @@ export class SafetyPolicy {
     this.now = now;
     this.tokens = new Map(); // token -> {hash, expires, summary}
     this.sessionApprovals = new Map(); // hash -> expires (approved via elicitation "for this session")
+    this._auditTail = Promise.resolve(); // serialises audit writes so lines stay in order
   }
 
   get level() {
@@ -208,7 +209,13 @@ export class SafetyPolicy {
     const rec = { t: new Date(this.now()).toISOString(), ...entry };
     this.logger?.debug?.('policy', rec);
     if (!this.auditFile) return;
-    appendLine(this.auditFile, JSON.stringify(rec)).catch(() => {});
+    const file = this.auditFile;
+    this._auditTail = this._auditTail.then(() => appendLine(file, JSON.stringify(rec))).catch(() => {});
+  }
+
+  /** Resolves once every audit line queued so far has been written. */
+  flushAudit() {
+    return this._auditTail;
   }
 
   /** Combine several assessments (e.g. command + target path). */
